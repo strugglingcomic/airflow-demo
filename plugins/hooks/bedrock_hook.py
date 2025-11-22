@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterator, List, Optional
 
 from airflow.hooks.base import BaseHook
 
-from src.airflow_aws.services.bedrock_service import BedrockService
+from src.airflow_demo.services.bedrock_service import BedrockService
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,6 @@ class BedrockHook(BaseHook):
         self,
         aws_conn_id: str = "aws_default",
         region_name: Optional[str] = None,
-        role_arn: Optional[str] = None,
         model_id: Optional[str] = None,
     ):
         """
@@ -41,14 +40,12 @@ class BedrockHook(BaseHook):
         Args:
             aws_conn_id: Airflow AWS connection ID
             region_name: AWS region
-            role_arn: Optional IAM role ARN to assume
             model_id: Claude model ID
         """
         super().__init__()
         self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
-        self.role_arn = role_arn
-        self.model_id = model_id
+        self.region_name = region_name or "us-east-1"
+        self.model_id = model_id or BedrockService.CLAUDE_3_5_SONNET
         self._service: Optional[BedrockService] = None
 
         logger.info(f"BedrockHook initialized with connection: {aws_conn_id}")
@@ -63,7 +60,6 @@ class BedrockHook(BaseHook):
         if self._service is None:
             self._service = BedrockService(
                 region_name=self.region_name,
-                role_arn=self.role_arn,
                 model_id=self.model_id,
             )
             logger.info("BedrockService connection established")
@@ -97,7 +93,7 @@ class BedrockHook(BaseHook):
         service = self.get_conn()
         logger.info(f"Invoking Claude with {len(messages)} messages")
 
-        response = service.invoke_claude(
+        response = service.invoke(
             messages=messages,
             max_tokens=max_tokens,
             temperature=temperature,
@@ -106,8 +102,7 @@ class BedrockHook(BaseHook):
 
         logger.info(
             f"Claude invocation complete. "
-            f"Input tokens: {response['usage']['input_tokens']}, "
-            f"Output tokens: {response['usage']['output_tokens']}"
+            f"Tokens: {response.get('usage', {})}"
         )
 
         return response
@@ -134,7 +129,7 @@ class BedrockHook(BaseHook):
         service = self.get_conn()
         logger.info(f"Invoking Claude with streaming for {len(messages)} messages")
 
-        yield from service.invoke_claude_streaming(
+        yield from service.invoke_streaming(
             messages=messages,
             max_tokens=max_tokens,
             temperature=temperature,
