@@ -125,9 +125,35 @@ def secrets_client(mock_aws_services):
 
 
 @pytest.fixture
-def bedrock_client(mock_aws_services):
+def bedrock_client():
     """Provide a mocked Bedrock Runtime client."""
-    return boto3.client("bedrock-runtime", region_name="us-east-1")
+    from io import BytesIO
+    from unittest.mock import PropertyMock
+
+    class BedrockMockClient(MagicMock):
+        """Custom mock that resets BytesIO streams on each call."""
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._return_value = None
+
+        @property
+        def return_value(self):
+            # Seek BytesIO to start before returning
+            if isinstance(self._return_value, dict) and 'body' in self._return_value:
+                body = self._return_value['body']
+                if isinstance(body, BytesIO):
+                    body.seek(0)
+            return self._return_value
+
+        @return_value.setter
+        def return_value(self, value):
+            self._return_value = value
+
+    mock_client = MagicMock()
+    mock_client.invoke_model = BedrockMockClient()
+    mock_client.invoke_model_with_response_stream = MagicMock()
+    return mock_client
 
 
 @pytest.fixture
@@ -295,7 +321,8 @@ def sample_dag():
 @pytest.fixture
 def execution_date():
     """Return a fixed execution date for testing."""
-    return datetime(2024, 1, 1, 0, 0, 0)
+    from airflow.utils import timezone
+    return timezone.datetime(2024, 1, 1, 0, 0, 0)
 
 
 @pytest.fixture
@@ -507,7 +534,7 @@ def performance_timer():
             self.end_time = time.perf_counter()
             self.elapsed = self.end_time - self.start_time
 
-    return Timer
+    return Timer()
 
 
 @pytest.fixture
@@ -531,6 +558,23 @@ def metrics_collector():
             return sum(values) / len(values) if values else 0.0
 
     return MetricsCollector()
+
+
+# ============================================================================
+# AIRFLOW DATABASE FIXTURES
+# ============================================================================
+
+
+@pytest.fixture(scope="session")
+def airflow_db():
+    """Initialize Airflow database for testing."""
+    from airflow import settings
+    from airflow.utils import db
+
+    # Initialize the database
+    db.resetdb()
+    yield
+    # Database cleanup happens at session end
 
 
 # ============================================================================

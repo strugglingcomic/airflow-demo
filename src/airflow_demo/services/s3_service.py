@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import boto3
+from boto3.exceptions import S3UploadFailedError
 from botocore.exceptions import ClientError
 
 
@@ -91,7 +92,7 @@ class S3Service:
             self.client.upload_file(str(file_path), bucket, key, ExtraArgs=extra_args)
             logger.info(f"Uploaded file {file_path} to s3://{bucket}/{key}")
             return f"s3://{bucket}/{key}"
-        except ClientError as e:
+        except (ClientError, S3UploadFailedError, FileNotFoundError, OSError) as e:
             logger.error(f"Failed to upload file to S3: {e}")
             raise S3ServiceError(f"Upload failed: {e}") from e
 

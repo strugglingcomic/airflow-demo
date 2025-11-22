@@ -297,7 +297,14 @@ Analysis instructions:
             BedrockServiceError: If extraction fails
         """
         try:
+            if "content" not in response:
+                raise BedrockServiceError("Failed to extract text: missing 'content' field")
+
             content_blocks = response.get("content", [])
+            # Empty content is valid and returns empty string
+            if not content_blocks:
+                return ""
+
             text_blocks = [
                 block["text"] for block in content_blocks if block.get("type") == "text"
             ]

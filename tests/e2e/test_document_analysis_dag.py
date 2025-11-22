@@ -24,7 +24,7 @@ from tests.utils.test_helpers import BedrockTestHelper
 
 
 @pytest.fixture
-def dag_bag():
+def dag_bag(airflow_db):
     """Load the DAG bag with our test DAGs."""
     dags_folder = Path(__file__).parent.parent / "fixtures" / "dags"
     return DagBag(dag_folder=str(dags_folder), include_examples=False)
@@ -36,6 +36,68 @@ def document_analysis_dag(dag_bag):
     dag = dag_bag.get_dag("document_analysis_pipeline")
     assert dag is not None, "DAG not found in DagBag"
     return dag
+
+
+@pytest.fixture
+def document_analysis_context(document_analysis_dag, execution_date, airflow_db):
+    """Create execution context for document analysis DAG."""
+    from datetime import timedelta
+
+    from airflow import settings
+    from airflow.models import DagRun, TaskInstance
+    from airflow.operators.empty import EmptyOperator
+    from airflow.utils.state import DagRunState, TaskInstanceState
+    from airflow.utils.types import DagRunType
+
+    session = settings.Session()
+
+    # Create a DagRun and persist to database
+    dag_run = DagRun(
+        dag_id=document_analysis_dag.dag_id,
+        run_id=f"test_run_{execution_date.isoformat()}",
+        execution_date=execution_date,
+        start_date=execution_date,
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.RUNNING,
+    )
+    session.add(dag_run)
+    session.commit()
+
+    # Create a dummy task and task instance
+    task = EmptyOperator(task_id="test_task", dag=document_analysis_dag)
+    ti = TaskInstance(task=task, run_id=dag_run.run_id)
+    ti.state = TaskInstanceState.RUNNING
+    session.add(ti)
+    session.commit()
+
+    # Create context
+    context = {
+        "dag": document_analysis_dag,
+        "dag_run": dag_run,
+        "task": task,
+        "task_instance": ti,
+        "ti": ti,
+        "execution_date": execution_date,
+        "ds": execution_date.strftime("%Y-%m-%d"),
+        "ds_nodash": execution_date.strftime("%Y%m%d"),
+        "ts": execution_date.isoformat(),
+        "ts_nodash": execution_date.strftime("%Y%m%dT%H%M%S"),
+        "prev_execution_date": execution_date - timedelta(days=1),
+        "next_execution_date": execution_date + timedelta(days=1),
+        "params": {},
+        "var": {"json": {}, "value": {}},
+        "conf": {},
+        "run_id": dag_run.run_id,
+        "test_mode": True,
+    }
+
+    yield context
+
+    # Cleanup
+    session.delete(ti)
+    session.delete(dag_run)
+    session.commit()
+    session.close()
 
 
 @pytest.mark.e2e
@@ -97,7 +159,7 @@ class TestDocumentAnalysisDAGExecution:
     def test_read_from_s3_task(
         self,
         document_analysis_dag,
-        airflow_context,
+        document_analysis_context,
         s3_client,
         s3_bucket,
         sample_json_data,
@@ -114,34 +176,34 @@ class TestDocumentAnalysisDAGExecution:
         task = document_analysis_dag.get_task("read_from_s3")
 
         # Update context with params
-        airflow_context["params"] = {
+        document_analysis_context["params"] = {
             "bucket": s3_bucket,
             "input_key": "input/test.json",
             "output_key": "output/test.json",
         }
 
         # Execute task
-        result = task.execute(context=airflow_context)
+        result = task.execute(context=document_analysis_context)
 
         # Verify
         assert "Read document" in result
         assert s3_bucket in result
 
         # Check XCom was pushed
-        document_data = airflow_context["ti"].xcom_pull(key="document_data")
+        document_data = document_analysis_context["ti"].xcom_pull(key="document_data")
         assert document_data == test_document
 
     def test_analyze_with_bedrock_task(
         self,
         document_analysis_dag,
-        airflow_context,
+        document_analysis_context,
         bedrock_client,
         bedrock_model_id,
     ):
         """Test analyze_with_bedrock task execution."""
         # Mock XCom pull
         test_document = {"content": "AI is transforming business."}
-        airflow_context["ti"].xcom_pull = lambda key: (
+        document_analysis_context["ti"].xcom_pull = lambda key: (
             test_document if key == "document_data" else None
         )
 
@@ -159,19 +221,19 @@ class TestDocumentAnalysisDAGExecution:
 
             # Get and execute task
             task = document_analysis_dag.get_task("analyze_with_bedrock")
-            result = task.execute(context=airflow_context)
+            result = task.execute(context=document_analysis_context)
 
             # Verify
             assert "analyzed successfully" in result
 
             # Check XCom was pushed
-            analysis = airflow_context["ti"].xcom_pull(key="analysis_result")
+            analysis = document_analysis_context["ti"].xcom_pull(key="analysis_result")
             assert analysis is not None
 
     def test_write_to_s3_task(
         self,
         document_analysis_dag,
-        airflow_context,
+        document_analysis_context,
         s3_client,
         s3_bucket,
     ):
@@ -191,8 +253,8 @@ class TestDocumentAnalysisDAGExecution:
                 return test_analysis
             return None
 
-        airflow_context["ti"].xcom_pull = mock_xcom_pull
-        airflow_context["params"] = {
+        document_analysis_context["ti"].xcom_pull = mock_xcom_pull
+        document_analysis_context["params"] = {
             "bucket": s3_bucket,
             "input_key": "input/test.json",
             "output_key": "output/result.json",
@@ -204,7 +266,7 @@ class TestDocumentAnalysisDAGExecution:
 
             # Execute task
             task = document_analysis_dag.get_task("write_to_s3")
-            result = task.execute(context=airflow_context)
+            result = task.execute(context=document_analysis_context)
 
             # Verify
             assert "Results written" in result
@@ -340,7 +402,7 @@ class TestDocumentAnalysisDAGErrorHandling:
     def test_read_from_s3_missing_file(
         self,
         document_analysis_dag,
-        airflow_context,
+        document_analysis_context,
         s3_client,
         s3_bucket,
     ):
@@ -349,7 +411,7 @@ class TestDocumentAnalysisDAGErrorHandling:
 
         task = document_analysis_dag.get_task("read_from_s3")
 
-        airflow_context["params"] = {
+        document_analysis_context["params"] = {
             "bucket": s3_bucket,
             "input_key": "missing/file.json",
             "output_key": "output/test.json",
@@ -360,12 +422,12 @@ class TestDocumentAnalysisDAGErrorHandling:
             mock_boto.return_value = s3_client
 
             with pytest.raises(S3ObjectNotFoundError):
-                task.execute(context=airflow_context)
+                task.execute(context=document_analysis_context)
 
     def test_analyze_with_bedrock_error(
         self,
         document_analysis_dag,
-        airflow_context,
+        document_analysis_context,
         bedrock_client,
     ):
         """Test handling of Bedrock errors."""
@@ -374,7 +436,7 @@ class TestDocumentAnalysisDAGErrorHandling:
         from src.airflow_demo.services.bedrock_service import BedrockServiceError
 
         # Mock XCom
-        airflow_context["ti"].xcom_pull = lambda key: (
+        document_analysis_context["ti"].xcom_pull = lambda key: (
             {"content": "Test"} if key == "document_data" else None
         )
 
@@ -390,7 +452,7 @@ class TestDocumentAnalysisDAGErrorHandling:
             mock_boto.return_value = bedrock_client
 
             with pytest.raises(BedrockServiceError):
-                task.execute(context=airflow_context)
+                task.execute(context=document_analysis_context)
 
 
 @pytest.mark.e2e
