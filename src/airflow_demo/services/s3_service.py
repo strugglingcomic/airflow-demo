@@ -8,12 +8,11 @@ with proper error handling and logging.
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import boto3
 from boto3.exceptions import S3UploadFailedError
 from botocore.exceptions import ClientError
-
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +34,10 @@ class S3Service:
 
     def __init__(
         self,
-        aws_access_key_id: Optional[str] = None,
-        aws_secret_access_key: Optional[str] = None,
+        aws_access_key_id: str | None = None,
+        aws_secret_access_key: str | None = None,
         region_name: str = "us-east-1",
-    ):
+    ) -> None:
         """
         Initialize S3 service.
 
@@ -64,10 +63,10 @@ class S3Service:
 
     def upload_file(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         bucket: str,
         key: str,
-        metadata: Optional[Dict[str, str]] = None,
+        metadata: dict[str, str] | None = None,
     ) -> str:
         """
         Upload a file to S3.
@@ -96,7 +95,7 @@ class S3Service:
             logger.error(f"Failed to upload file to S3: {e}")
             raise S3ServiceError(f"Upload failed: {e}") from e
 
-    def download_file(self, bucket: str, key: str, local_path: Union[str, Path]) -> Path:
+    def download_file(self, bucket: str, key: str, local_path: str | Path) -> Path:
         """
         Download a file from S3.
 
@@ -124,7 +123,7 @@ class S3Service:
             logger.error(f"Failed to download file from S3: {e}")
             raise S3ServiceError(f"Download failed: {e}") from e
 
-    def read_json(self, bucket: str, key: str) -> Dict[str, Any]:
+    def read_json(self, bucket: str, key: str) -> dict[str, Any]:
         """
         Read and parse a JSON file from S3.
 
@@ -153,7 +152,7 @@ class S3Service:
             raise S3ServiceError(f"Invalid JSON content: {e}") from e
 
     def write_json(
-        self, data: Dict[str, Any], bucket: str, key: str, indent: Optional[int] = None
+        self, data: dict[str, Any], bucket: str, key: str, indent: int | None = None
     ) -> str:
         """
         Write JSON data to S3.
@@ -181,7 +180,7 @@ class S3Service:
 
     def list_objects(
         self, bucket: str, prefix: str = "", max_keys: int = 1000
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         List objects in an S3 bucket.
 
@@ -197,9 +196,7 @@ class S3Service:
             S3ServiceError: If listing fails
         """
         try:
-            response = self.client.list_objects_v2(
-                Bucket=bucket, Prefix=prefix, MaxKeys=max_keys
-            )
+            response = self.client.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=max_keys)
             objects = response.get("Contents", [])
             logger.info(f"Listed {len(objects)} objects from s3://{bucket}/{prefix}")
             return objects
@@ -273,7 +270,7 @@ class S3Service:
             logger.error(f"Failed to copy object: {e}")
             raise S3ServiceError(f"Copy failed: {e}") from e
 
-    def get_object_metadata(self, bucket: str, key: str) -> Dict[str, Any]:
+    def get_object_metadata(self, bucket: str, key: str) -> dict[str, Any]:
         """
         Get metadata for an S3 object.
 

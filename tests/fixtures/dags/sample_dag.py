@@ -13,7 +13,6 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
-
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,

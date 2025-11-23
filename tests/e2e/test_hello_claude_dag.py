@@ -90,7 +90,6 @@ class TestHelloClaudeDAG:
     ):
         """Test that task handles Bedrock errors appropriately."""
         from botocore.exceptions import ClientError
-
         from src.airflow_demo.services.bedrock_service import BedrockServiceError
 
         # Mock a Bedrock error

@@ -8,19 +8,12 @@ These tests demonstrate:
 4. Integration with AWS services in DAG context
 """
 
-import json
-from datetime import datetime
-from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from airflow.models import DagBag, TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState
-
-from src.airflow_demo.services.bedrock_service import BedrockService
-from src.airflow_demo.services.s3_service import S3Service
-from tests.utils.test_helpers import BedrockTestHelper
 
 
 @pytest.fixture
@@ -44,9 +37,8 @@ def document_analysis_context(document_analysis_dag, execution_date, airflow_db)
     from datetime import timedelta
 
     from airflow import settings
-    from airflow.models import DagRun, TaskInstance
+    from airflow.models import DagRun
     from airflow.operators.empty import EmptyOperator
-    from airflow.utils.state import DagRunState, TaskInstanceState
     from airflow.utils.types import DagRunType
 
     session = settings.Session()
@@ -189,7 +181,6 @@ class TestDocumentAnalysisDAGErrorHandling:
     ):
         """Test handling of Bedrock errors."""
         from botocore.exceptions import ClientError
-
         from src.airflow_demo.services.bedrock_service import BedrockServiceError
 
         # Mock XCom

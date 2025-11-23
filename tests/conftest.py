@@ -12,7 +12,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Generator, List
+from typing import Any
 from unittest.mock import MagicMock, Mock
 
 import boto3
@@ -128,7 +128,6 @@ def secrets_client(mock_aws_services):
 def bedrock_client():
     """Provide a mocked Bedrock Runtime client."""
     from io import BytesIO
-    from unittest.mock import PropertyMock
 
     class BedrockMockClient(MagicMock):
         """Custom mock that resets BytesIO streams on each call."""
@@ -140,8 +139,8 @@ def bedrock_client():
         @property
         def return_value(self):
             # Seek BytesIO to start before returning
-            if isinstance(self._return_value, dict) and 'body' in self._return_value:
-                body = self._return_value['body']
+            if isinstance(self._return_value, dict) and "body" in self._return_value:
+                body = self._return_value["body"]
                 if isinstance(body, BytesIO):
                     body.seek(0)
             return self._return_value
@@ -182,12 +181,8 @@ def s3_bucket_with_data(s3_client, s3_bucket, sample_json_data):
     s3_client.put_object(
         Bucket=s3_bucket, Key="data/sample.json", Body=json.dumps(sample_json_data)
     )
-    s3_client.put_object(
-        Bucket=s3_bucket, Key="data/sample.txt", Body="Hello, World!"
-    )
-    s3_client.put_object(
-        Bucket=s3_bucket, Key="data/nested/file.json", Body='{"nested": true}'
-    )
+    s3_client.put_object(Bucket=s3_bucket, Key="data/sample.txt", Body="Hello, World!")
+    s3_client.put_object(Bucket=s3_bucket, Key="data/nested/file.json", Body='{"nested": true}')
     # Add empty folder marker
     s3_client.put_object(Bucket=s3_bucket, Key="empty_folder/", Body="")
     return s3_bucket
@@ -210,7 +205,7 @@ def s3_versioned_bucket(s3_client):
 
 
 @pytest.fixture
-def sample_secrets(secrets_client) -> Dict[str, str]:
+def sample_secrets(secrets_client) -> dict[str, str]:
     """Create sample secrets in Secrets Manager."""
     secrets = {
         "airflow/connections/aws_default": json.dumps(
@@ -322,6 +317,7 @@ def sample_dag():
 def execution_date():
     """Return a fixed execution date for testing."""
     from airflow.utils import timezone
+
     return timezone.datetime(2024, 1, 1, 0, 0, 0)
 
 
@@ -550,7 +546,7 @@ def metrics_collector():
                 self.metrics[name] = []
             self.metrics[name].append(value)
 
-        def get(self, name: str) -> List[Any]:
+        def get(self, name: str) -> list[Any]:
             return self.metrics.get(name, [])
 
         def average(self, name: str) -> float:
@@ -568,7 +564,6 @@ def metrics_collector():
 @pytest.fixture(scope="session")
 def airflow_db():
     """Initialize Airflow database for testing."""
-    from airflow import settings
     from airflow.utils import db
 
     # Initialize the database

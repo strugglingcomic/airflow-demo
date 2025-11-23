@@ -7,11 +7,11 @@ with support for Claude models, streaming, and error handling.
 
 import json
 import logging
-from typing import Any, Dict, Iterator, Optional
+from collections.abc import Iterator
+from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
-
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +39,10 @@ class BedrockService:
     def __init__(
         self,
         model_id: str = CLAUDE_3_5_SONNET,
-        aws_access_key_id: Optional[str] = None,
-        aws_secret_access_key: Optional[str] = None,
+        aws_access_key_id: str | None = None,
+        aws_secret_access_key: str | None = None,
         region_name: str = "us-east-1",
-    ):
+    ) -> None:
         """
         Initialize Bedrock service.
 
@@ -64,13 +64,13 @@ class BedrockService:
 
     def invoke(
         self,
-        messages: list[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         max_tokens: int = 1024,
         temperature: float = 0.7,
         top_p: float = 0.9,
-        system: Optional[str] = None,
-        stop_sequences: Optional[list[str]] = None,
-    ) -> Dict[str, Any]:
+        system: str | None = None,
+        stop_sequences: list[str] | None = None,
+    ) -> dict[str, Any]:
         """
         Invoke Bedrock model (non-streaming).
 
@@ -102,9 +102,7 @@ class BedrockService:
             if stop_sequences:
                 payload["stop_sequences"] = stop_sequences
 
-            response = self.client.invoke_model(
-                modelId=self.model_id, body=json.dumps(payload)
-            )
+            response = self.client.invoke_model(modelId=self.model_id, body=json.dumps(payload))
 
             response_body = json.loads(response["body"].read())
             logger.info(
@@ -122,12 +120,12 @@ class BedrockService:
 
     def invoke_streaming(
         self,
-        messages: list[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         max_tokens: int = 1024,
         temperature: float = 0.7,
         top_p: float = 0.9,
-        system: Optional[str] = None,
-        stop_sequences: Optional[list[str]] = None,
+        system: str | None = None,
+        stop_sequences: list[str] | None = None,
     ) -> Iterator[str]:
         """
         Invoke Bedrock model with streaming.
@@ -184,7 +182,7 @@ class BedrockService:
         prompt: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> str:
         """
         Simple chat interface - send a prompt and get a response.
@@ -217,7 +215,7 @@ class BedrockService:
         prompt: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> Iterator[str]:
         """
         Simple streaming chat interface.
@@ -283,7 +281,7 @@ Analysis instructions:
             system=system_prompt,
         )
 
-    def _extract_text_from_response(self, response: Dict[str, Any]) -> str:
+    def _extract_text_from_response(self, response: dict[str, Any]) -> str:
         """
         Extract text content from Bedrock response.
 
@@ -305,14 +303,12 @@ Analysis instructions:
             if not content_blocks:
                 return ""
 
-            text_blocks = [
-                block["text"] for block in content_blocks if block.get("type") == "text"
-            ]
+            text_blocks = [block["text"] for block in content_blocks if block.get("type") == "text"]
             return " ".join(text_blocks)
         except (KeyError, TypeError) as e:
             raise BedrockServiceError(f"Failed to extract text from response: {e}") from e
 
-    def get_usage_stats(self, response: Dict[str, Any]) -> Dict[str, int]:
+    def get_usage_stats(self, response: dict[str, Any]) -> dict[str, int]:
         """
         Extract usage statistics from response.
 

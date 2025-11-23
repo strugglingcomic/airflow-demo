@@ -10,13 +10,12 @@ These tests demonstrate:
 
 import json
 from io import BytesIO
-from pathlib import Path
 
 import pytest
-
 from src.airflow_demo.services.bedrock_service import BedrockService
 from src.airflow_demo.services.s3_service import S3Service
-from tests.utils.test_helpers import AssertionHelper, BedrockTestHelper
+
+from tests.utils.test_helpers import BedrockTestHelper
 
 
 @pytest.mark.integration
@@ -24,9 +23,7 @@ from tests.utils.test_helpers import AssertionHelper, BedrockTestHelper
 class TestS3BedrockDocumentAnalysisWorkflow:
     """Test complete workflow: S3 -> Bedrock -> S3."""
 
-    def test_analyze_document_from_s3(
-        self, s3_client, bedrock_client, s3_bucket, bedrock_model_id
-    ):
+    def test_analyze_document_from_s3(self, s3_client, bedrock_client, s3_bucket, bedrock_model_id):
         """
         Test complete workflow:
         1. Upload document to S3
@@ -85,9 +82,7 @@ class TestS3BedrockDocumentAnalysisWorkflow:
         assert saved_result["analysis"] == analysis_result
         assert saved_result["original_key"] == "input/document.json"
 
-    def test_batch_document_analysis(
-        self, s3_client, bedrock_client, s3_bucket, bedrock_model_id
-    ):
+    def test_batch_document_analysis(self, s3_client, bedrock_client, s3_bucket, bedrock_model_id):
         """
         Test batch processing of multiple documents:
         1. Upload multiple documents to S3
@@ -129,16 +124,12 @@ class TestS3BedrockDocumentAnalysisWorkflow:
             }
 
             # Analyze
-            result = bedrock_service.chat(
-                f"Analyze this: {doc_data['text']}", max_tokens=100
-            )
+            result = bedrock_service.chat(f"Analyze this: {doc_data['text']}", max_tokens=100)
 
             results.append({"doc_id": doc_data["id"], "analysis": result})
 
         # Write batch results
-        s3_service.write_json(
-            {"results": results}, s3_bucket, "batch/output/all_results.json"
-        )
+        s3_service.write_json({"results": results}, s3_bucket, "batch/output/all_results.json")
 
         # Verify
         saved_results = s3_service.read_json(s3_bucket, "batch/output/all_results.json")
@@ -175,9 +166,7 @@ class TestS3BedrockDocumentAnalysisWorkflow:
         full_text = "".join(collected_chunks)
 
         # Save to S3
-        s3_service.write_json(
-            {"streaming_result": full_text}, s3_bucket, "streaming/output.json"
-        )
+        s3_service.write_json({"streaming_result": full_text}, s3_bucket, "streaming/output.json")
 
         # Verify
         result = s3_service.read_json(s3_bucket, "streaming/output.json")
@@ -206,7 +195,6 @@ class TestS3BedrockErrorHandling:
     ):
         """Test handling Bedrock errors and logging to S3."""
         from botocore.exceptions import ClientError
-
         from src.airflow_demo.services.bedrock_service import BedrockServiceError
 
         s3_service = S3Service()
@@ -240,7 +228,10 @@ class TestS3BedrockErrorHandling:
         # Verify error was logged
         saved_error = s3_service.read_json(s3_bucket, "test/error.json")
         assert saved_error["status"] == "error"
-        assert "ThrottlingException" in saved_error["message"] or "Rate exceeded" in saved_error["message"]
+        assert (
+            "ThrottlingException" in saved_error["message"]
+            or "Rate exceeded" in saved_error["message"]
+        )
 
     def test_partial_batch_failure_handling(
         self, s3_client, bedrock_client, s3_bucket, bedrock_model_id
@@ -301,9 +292,7 @@ class TestS3BedrockErrorHandling:
 class TestS3BedrockDataTransformation:
     """Test data transformation workflows using S3 and Bedrock."""
 
-    def test_transform_json_with_ai(
-        self, s3_client, bedrock_client, s3_bucket, bedrock_model_id
-    ):
+    def test_transform_json_with_ai(self, s3_client, bedrock_client, s3_bucket, bedrock_model_id):
         """
         Test AI-powered data transformation:
         1. Read structured data from S3
@@ -349,9 +338,7 @@ class TestS3BedrockDataTransformation:
 
         # Parse and save transformed data
         # In real scenario, you'd extract JSON from the response
-        s3_service.write_json(
-            {"transformed": result_text}, s3_bucket, "transform/output.json"
-        )
+        s3_service.write_json({"transformed": result_text}, s3_bucket, "transform/output.json")
 
         # Verify
         output = s3_service.read_json(s3_bucket, "transform/output.json")
@@ -452,9 +439,7 @@ class TestS3BedrockPerformance:
             for i in range(num_docs):
                 doc = s3_service.read_json(s3_bucket, f"perf/doc_{i}.json")
                 result = bedrock_service.chat(doc["text"])
-                s3_service.write_json(
-                    {"result": result}, s3_bucket, f"perf/result_{i}.json"
-                )
+                s3_service.write_json({"result": result}, s3_bucket, f"perf/result_{i}.json")
 
         # Performance assertion
         assert timer.elapsed < 5.0  # Should be fast with mocked services

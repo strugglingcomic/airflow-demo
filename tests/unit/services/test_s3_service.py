@@ -10,20 +10,16 @@ These tests demonstrate TDD principles:
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from botocore.exceptions import ClientError
-
 from src.airflow_demo.services.s3_service import (
     S3ObjectNotFoundError,
     S3Service,
     S3ServiceError,
 )
+
 from tests.utils.test_helpers import (
     AssertionHelper,
-    MockResponseBuilder,
-    S3TestHelper,
 )
 
 
@@ -76,9 +72,7 @@ class TestS3ServiceUploadFile:
         service.client = s3_client
 
         metadata = {"user": "test_user", "version": "1.0"}
-        result = service.upload_file(
-            temp_file, s3_bucket, "uploads/test.txt", metadata=metadata
-        )
+        result = service.upload_file(temp_file, s3_bucket, "uploads/test.txt", metadata=metadata)
 
         assert result == f"s3://{s3_bucket}/uploads/test.txt"
 

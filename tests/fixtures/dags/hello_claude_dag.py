@@ -9,7 +9,6 @@ from datetime import timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
-
 from src.airflow_demo.services.bedrock_service import BedrockService
 
 default_args = {

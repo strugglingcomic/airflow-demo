@@ -10,16 +10,15 @@ These tests demonstrate TDD for AI/ML service integration:
 
 import json
 from io import BytesIO
-from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from botocore.exceptions import ClientError
-
 from src.airflow_demo.services.bedrock_service import (
     BedrockService,
     BedrockServiceError,
 )
-from tests.utils.test_helpers import BedrockTestHelper, MockResponseBuilder
+
+from tests.utils.test_helpers import BedrockTestHelper
 
 
 @pytest.mark.unit
@@ -73,9 +72,7 @@ class TestBedrockServiceInvoke:
         }
         service.client = bedrock_client
 
-        messages = [
-            {"role": "user", "content": [{"type": "text", "text": "Hello!"}]}
-        ]
+        messages = [{"role": "user", "content": [{"type": "text", "text": "Hello!"}]}]
 
         result = service.invoke(messages=messages)
 
@@ -102,7 +99,7 @@ class TestBedrockServiceInvoke:
         messages = [{"role": "user", "content": [{"type": "text", "text": "Question"}]}]
         system_prompt = "You are a helpful assistant."
 
-        result = service.invoke(messages=messages, system=system_prompt)
+        service.invoke(messages=messages, system=system_prompt)
 
         # Verify system prompt was included in request
         call_args = bedrock_client.invoke_model.call_args
@@ -122,7 +119,7 @@ class TestBedrockServiceInvoke:
 
         messages = [{"role": "user", "content": [{"type": "text", "text": "Test"}]}]
 
-        result = service.invoke(
+        service.invoke(
             messages=messages,
             max_tokens=2048,
             temperature=0.5,
@@ -150,7 +147,7 @@ class TestBedrockServiceInvoke:
         messages = [{"role": "user", "content": [{"type": "text", "text": "Test"}]}]
         stop_sequences = ["END", "STOP"]
 
-        result = service.invoke(messages=messages, stop_sequences=stop_sequences)
+        service.invoke(messages=messages, stop_sequences=stop_sequences)
 
         call_args = bedrock_client.invoke_model.call_args
         body = json.loads(call_args[1]["body"])
@@ -328,7 +325,7 @@ class TestBedrockServiceAnalyzeDocument:
             "ResponseMetadata": response_data["ResponseMetadata"],
         }
 
-        result = service.analyze_document(
+        service.analyze_document(
             "Document text",
             "Analyze this",
             max_tokens=3000,
@@ -456,9 +453,7 @@ class TestBedrockServiceMessageFormats:
             "ResponseMetadata": response_data["ResponseMetadata"],
         }
 
-        messages = [
-            {"role": "user", "content": [{"type": "text", "text": "Hello"}]}
-        ]
+        messages = [{"role": "user", "content": [{"type": "text", "text": "Hello"}]}]
 
         result = service.invoke(messages=messages)
         assert "content" in result
@@ -495,7 +490,9 @@ class TestBedrockServiceMessageFormats:
 class TestBedrockServicePerformance:
     """Performance and load tests for BedrockService."""
 
-    def test_multiple_sequential_invocations(self, bedrock_client, bedrock_model_id, performance_timer):
+    def test_multiple_sequential_invocations(
+        self, bedrock_client, bedrock_model_id, performance_timer
+    ):
         """Test performance of multiple sequential invocations."""
         service = BedrockService(model_id=bedrock_model_id)
         service.client = bedrock_client

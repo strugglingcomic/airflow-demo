@@ -4,8 +4,7 @@ Test helper utilities for generating test data, mocks, and assertions.
 
 import json
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
-from unittest.mock import Mock
+from typing import Any
 
 from faker import Faker
 
@@ -18,8 +17,8 @@ class S3TestHelper:
         bucket: str,
         key: str,
         content: str = "",
-        metadata: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+        metadata: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """Create a mock S3 object response."""
         return {
             "Bucket": bucket,
@@ -34,9 +33,7 @@ class S3TestHelper:
         }
 
     @staticmethod
-    def create_s3_list_response(
-        bucket: str, keys: List[str], prefix: str = ""
-    ) -> Dict[str, Any]:
+    def create_s3_list_response(bucket: str, keys: list[str], prefix: str = "") -> dict[str, Any]:
         """Create a mock S3 list objects response."""
         contents = [
             {
@@ -61,7 +58,7 @@ class S3TestHelper:
         }
 
     @staticmethod
-    def create_multipart_upload_response(bucket: str, key: str) -> Dict[str, Any]:
+    def create_multipart_upload_response(bucket: str, key: str) -> dict[str, Any]:
         """Create a mock multipart upload initiation response."""
         return {
             "Bucket": bucket,
@@ -75,8 +72,8 @@ class SecretsTestHelper:
 
     @staticmethod
     def create_secret_response(
-        secret_name: str, secret_value: str, version_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        secret_name: str, secret_value: str, version_id: str | None = None
+    ) -> dict[str, Any]:
         """Create a mock GetSecretValue response."""
         return {
             "ARN": f"arn:aws:secretsmanager:us-east-1:123456789012:secret:{secret_name}",
@@ -88,9 +85,7 @@ class SecretsTestHelper:
         }
 
     @staticmethod
-    def create_secret_versions_response(
-        secret_name: str, versions: List[str]
-    ) -> Dict[str, Any]:
+    def create_secret_versions_response(secret_name: str, versions: list[str]) -> dict[str, Any]:
         """Create a mock ListSecretVersionIds response."""
         return {
             "ARN": f"arn:aws:secretsmanager:us-east-1:123456789012:secret:{secret_name}",
@@ -109,11 +104,11 @@ class SecretsTestHelper:
     @staticmethod
     def create_airflow_connection_secret(
         conn_type: str = "aws",
-        login: Optional[str] = None,
-        password: Optional[str] = None,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        extra: Optional[Dict[str, Any]] = None,
+        login: str | None = None,
+        password: str | None = None,
+        host: str | None = None,
+        port: int | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> str:
         """Create an Airflow connection secret in the expected format."""
         connection = {"conn_type": conn_type}
@@ -139,7 +134,7 @@ class BedrockTestHelper:
         model_id: str = "anthropic.claude-3-5-sonnet-20241022-v2:0",
         input_tokens: int = 10,
         output_tokens: int = 20,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a mock Bedrock invoke_model response."""
         return {
             "ResponseMetadata": {
@@ -164,7 +159,7 @@ class BedrockTestHelper:
         }
 
     @staticmethod
-    def create_streaming_chunks(text: str, chunk_size: int = 10) -> List[Dict[str, Any]]:
+    def create_streaming_chunks(text: str, chunk_size: int = 10) -> list[dict[str, Any]]:
         """Create mock streaming response chunks."""
         chunks = []
 
@@ -205,8 +200,8 @@ class BedrockTestHelper:
         message: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
-        system: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        system: str | None = None,
+    ) -> dict[str, Any]:
         """Create a valid Bedrock API request payload."""
         payload = {
             "anthropic_version": "bedrock-2023-05-31",
@@ -231,7 +226,7 @@ class DataBuilder:
         self.fake = Faker()
         Faker.seed(12345)
 
-    def build_user(self, **overrides) -> Dict[str, Any]:
+    def build_user(self, **overrides) -> dict[str, Any]:
         """Build a user record."""
         user = {
             "id": self.fake.uuid4(),
@@ -243,7 +238,7 @@ class DataBuilder:
         user.update(overrides)
         return user
 
-    def build_transaction(self, **overrides) -> Dict[str, Any]:
+    def build_transaction(self, **overrides) -> dict[str, Any]:
         """Build a transaction record."""
         transaction = {
             "id": self.fake.uuid4(),
@@ -257,7 +252,7 @@ class DataBuilder:
         transaction.update(overrides)
         return transaction
 
-    def build_log_entry(self, **overrides) -> Dict[str, Any]:
+    def build_log_entry(self, **overrides) -> dict[str, Any]:
         """Build a log entry."""
         log_entry = {
             "timestamp": self.fake.date_time_this_year().isoformat(),
@@ -269,7 +264,7 @@ class DataBuilder:
         log_entry.update(overrides)
         return log_entry
 
-    def build_dataset(self, builder_method: str, count: int = 10) -> List[Dict[str, Any]]:
+    def build_dataset(self, builder_method: str, count: int = 10) -> list[dict[str, Any]]:
         """Build a list of records using the specified builder method."""
         method = getattr(self, builder_method)
         return [method() for _ in range(count)]
@@ -284,7 +279,7 @@ class AssertionHelper:
         try:
             s3_client.head_object(Bucket=bucket, Key=key)
         except s3_client.exceptions.NoSuchKey:
-            raise AssertionError(f"S3 object s3://{bucket}/{key} does not exist")
+            raise AssertionError(f"S3 object s3://{bucket}/{key} does not exist") from None
 
     @staticmethod
     def assert_s3_object_not_exists(s3_client, bucket: str, key: str):
@@ -305,17 +300,21 @@ class AssertionHelper:
         ), f"Content mismatch. Expected: {expected_content}, Got: {actual_content}"
 
     @staticmethod
-    def assert_json_structure(data: Dict[str, Any], expected_keys: List[str]):
+    def assert_json_structure(data: dict[str, Any], expected_keys: list[str]):
         """Assert that a JSON structure contains expected keys."""
         missing_keys = set(expected_keys) - set(data.keys())
         assert not missing_keys, f"Missing keys: {missing_keys}"
 
     @staticmethod
-    def assert_bedrock_response_valid(response: Dict[str, Any]):
+    def assert_bedrock_response_valid(response: dict[str, Any]):
         """Assert that a Bedrock response has the expected structure."""
         assert "ResponseMetadata" in response
         assert response["ResponseMetadata"]["HTTPStatusCode"] == 200
-        body = json.loads(response["body"]) if isinstance(response["body"], bytes) else response["body"]
+        body = (
+            json.loads(response["body"])
+            if isinstance(response["body"], bytes)
+            else response["body"]
+        )
         assert "content" in body
         assert isinstance(body["content"], list)
         assert len(body["content"]) > 0
@@ -334,9 +333,7 @@ class AssertionHelper:
         """Assert that a DagRun completed successfully."""
         from airflow.utils.state import DagRunState
 
-        assert (
-            dag_run.state == DagRunState.SUCCESS
-        ), f"DAG run failed with state: {dag_run.state}"
+        assert dag_run.state == DagRunState.SUCCESS, f"DAG run failed with state: {dag_run.state}"
 
 
 class MockResponseBuilder:
@@ -388,7 +385,7 @@ class TimeHelper:
     @staticmethod
     def get_execution_dates(
         start_date: datetime, count: int = 5, interval_days: int = 1
-    ) -> List[datetime]:
+    ) -> list[datetime]:
         """Generate a list of execution dates."""
         return [start_date + timedelta(days=i * interval_days) for i in range(count)]
 

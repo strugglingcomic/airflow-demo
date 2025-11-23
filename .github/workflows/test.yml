@@ -14,25 +14,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: uv sync --all-extras
 
       - name: Run ruff
-        run: ruff check src/ tests/
+        run: uv run ruff check src/ tests/
 
       - name: Check formatting with black
-        run: black --check src/ tests/
+        run: uv run black --check src/ tests/
 
       - name: Type checking with mypy
-        run: mypy src/
+        run: uv run mypy src/
         continue-on-error: true
 
   test:
@@ -46,20 +48,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: uv sync --all-extras
 
       - name: Run unit tests
         run: |
-          pytest -m unit tests/ \
+          uv run pytest -m unit tests/ \
             --junitxml=junit/test-results-unit-${{ matrix.python-version }}.xml \
             --cov=src \
             --cov-report=xml \
@@ -68,7 +72,7 @@ jobs:
 
       - name: Run integration tests
         run: |
-          pytest -m integration tests/ \
+          uv run pytest -m integration tests/ \
             --junitxml=junit/test-results-integration-${{ matrix.python-version }}.xml \
             --cov=src \
             --cov-append \
@@ -78,7 +82,7 @@ jobs:
 
       - name: Run E2E tests
         run: |
-          pytest -m e2e tests/ \
+          uv run pytest -m e2e tests/ \
             --junitxml=junit/test-results-e2e-${{ matrix.python-version }}.xml \
             --cov=src \
             --cov-append \
@@ -107,20 +111,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: uv sync --all-extras
 
       - name: Run unit tests in parallel
         run: |
-          pytest -m unit -n auto tests/ \
+          uv run pytest -m unit -n auto tests/ \
             --junitxml=junit/test-results-parallel.xml \
             --cov=src \
             --cov-report=xml \
@@ -128,10 +134,10 @@ jobs:
 
       - name: Check coverage threshold
         run: |
-          pytest --cov=src --cov-fail-under=80 tests/ --cov-report=term
+          uv run pytest --cov=src --cov-fail-under=80 tests/ --cov-report=term
 
   test-markers:
-    name: Test by Component
+    name: Test by Component (${{ matrix.marker }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -141,20 +147,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: uv sync --all-extras
 
       - name: Run ${{ matrix.marker }} tests
         run: |
-          pytest -m ${{ matrix.marker }} tests/ \
+          uv run pytest -m ${{ matrix.marker }} tests/ \
             --junitxml=junit/test-results-${{ matrix.marker }}.xml \
             --cov=src \
             --cov-report=term-missing \
@@ -167,20 +175,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: uv sync --all-extras
 
       - name: Generate coverage report
         run: |
-          pytest tests/ \
+          uv run pytest tests/ \
             --cov=src \
             --cov-report=html \
             --cov-report=term \
@@ -197,7 +207,7 @@ jobs:
           echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          coverage report >> $GITHUB_STEP_SUMMARY
+          uv run coverage report >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   security:
@@ -206,24 +216,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          pip install bandit safety
+          uv sync --all-extras
+          uv pip install bandit safety
 
       - name: Run bandit security scan
-        run: bandit -r src/ -f json -o bandit-report.json
+        run: uv run bandit -r src/ -f json -o bandit-report.json
         continue-on-error: true
 
       - name: Check dependencies for vulnerabilities
-        run: safety check --json
+        run: uv run safety check --json
         continue-on-error: true
 
   test-summary:
