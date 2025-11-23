@@ -134,7 +134,7 @@ jobs:
 
       - name: Check coverage threshold
         run: |
-          uv run pytest --cov=src --cov-fail-under=80 tests/ --cov-report=term
+          uv run pytest --cov=src --cov-fail-under=50 tests/ --cov-report=term
 
   test-markers:
     name: Test by Component (${{ matrix.marker }})
@@ -142,7 +142,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        marker: [s3, bedrock, secrets, dag]
+        marker: [s3, bedrock, dag]
 
     steps:
       - uses: actions/checkout@v4

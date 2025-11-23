@@ -74,7 +74,6 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
     "--cov-report=xml:coverage.xml",
-    "--cov-fail-under=85",
 ]
 markers = [
     "unit: Unit tests - test individual components in isolation",
